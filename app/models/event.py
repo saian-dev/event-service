@@ -1,10 +1,8 @@
 import datetime
 
-from sqlalchemy import select
 from sqlalchemy.sql import func
 from sqlalchemy.orm import mapped_column, Mapped, relationship
-from sqlalchemy import Integer, String, Text, DateTime, Boolean, Float, Index
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import Integer, String, Text, DateTime, Boolean, Float, Index, ForeignKey
 
 from app.core.database import Base
 
@@ -21,7 +19,8 @@ class Event(Base):
     total_tickets: Mapped[int] = mapped_column(Integer, nullable=False)
     available_tickets: Mapped[int] = mapped_column(Integer, nullable=False)
     price: Mapped[float] = mapped_column(Float, nullable=False)
-    category: Mapped[str] = relationship("EventCategory", back_populates="events")
+    category_id: Mapped[str] = mapped_column(ForeignKey("event_categories.name"))
+    category: Mapped["EventCategory"] = relationship()
     image_url: Mapped[str] = mapped_column(String(255), nullable=True)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
@@ -44,11 +43,6 @@ class EventCategory(Base):
     __tablename__ = "event_categories"
 
     name: Mapped[str] = mapped_column(String(100), primary_key=True, index=True)
-    events: Mapped["Event"] = relationship("Event", back_populates="categories")
-
-    @classmethod
-    async def get_all(cls, db: AsyncSession):
-        return (await db.execute(select(cls))).scalars().all()
 
     def __repr__(self):
         return f"EventCategory: {self.name}"

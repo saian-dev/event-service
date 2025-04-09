@@ -4,7 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db_session
-from app.models import EventCategory as EventCategoryModel
+from app.services.event import EventService
 
 
 router = APIRouter()
@@ -17,7 +17,8 @@ class EventCategorySchema(BaseModel):
         from_attributes = True
 
 
-@router.get("/", response_model=EventCategorySchema)
+@router.get("/", response_model=list[EventCategorySchema])
 async def get_all_categories(db: Annotated[AsyncSession, Depends(get_db_session)]):
-    categories = await EventCategoryModel.get_all(db)
+    server = EventService(db=db)
+    categories = await server.get_all_categories()
     return categories

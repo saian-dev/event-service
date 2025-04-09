@@ -1,8 +1,8 @@
 """initial
 
-Revision ID: 255a73da46d0
+Revision ID: b10d43c9ba66
 Revises:
-Create Date: 2025-04-04 20:37:35.542649
+Create Date: 2025-04-09 22:35:31.988871
 
 """
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "255a73da46d0"
+revision: str = "b10d43c9ba66"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -39,6 +39,7 @@ def upgrade() -> None:
         sa.Column("total_tickets", sa.Integer(), nullable=False),
         sa.Column("available_tickets", sa.Integer(), nullable=False),
         sa.Column("price", sa.Float(), nullable=False),
+        sa.Column("category_id", sa.String(length=100), nullable=False),
         sa.Column("image_url", sa.String(length=255), nullable=True),
         sa.Column("is_published", sa.Boolean(), nullable=False),
         sa.Column(
@@ -53,13 +54,14 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
+        sa.ForeignKeyConstraint(
+            ["category_id"],
+            ["event_categories.name"],
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        "idx_is_published_start_date",
-        "events",
-        ["is_published", "start_date"],
-        unique=False,
+        "idx_is_published_start_date", "events", ["is_published", "start_date"], unique=False
     )
     op.create_index("idx_start_date_venue", "events", ["start_date", "venue"], unique=False)
     op.create_index(op.f("ix_events_id"), "events", ["id"], unique=False)
