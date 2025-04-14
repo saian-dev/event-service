@@ -2,6 +2,7 @@ from typing import Annotated
 from fastapi import Depends
 
 from sqlalchemy import select, insert
+from sqlalchemy.orm import joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db_session
@@ -26,7 +27,7 @@ class EventService:
         return qs.mappings().one()
 
     async def get_events(self, limit: int | None = None, offset: int | None = None):
-        qs = select(Event)
+        qs = select(Event).options(joinedload(Event.category))
         if limit is not None and offset is not None:
             qs = qs.limit(limit).offset(offset)
         return (await self.db.execute(qs)).scalars().all()
