@@ -1,12 +1,17 @@
 import http
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
 
 from app.services.event import get_event_service, EventService
-from app.api.utils import pagination_params
-from .schemas import EventCategoryOutSchema, EventOutSchema, EventCategoryInSchema
+from .schemas import (
+    EventCategoryOutSchema,
+    EventOutSchema,
+    EventCategoryInSchema,
+    EventFilterSchema,
+    PaginationSchema,
+)
 
 router = APIRouter()
 
@@ -14,11 +19,11 @@ router = APIRouter()
 # CATEGORIES
 @router.get("/categories", response_model=list[EventCategoryOutSchema])
 async def get_all_categories(
-    pagination: Annotated[dict, Depends(pagination_params)],
+    pagination: Annotated[PaginationSchema, Query()],
     event_service: Annotated[EventService, Depends(get_event_service)],
 ):
     categories = await event_service.get_categories(
-        limit=pagination["limit"], offset=pagination["offset"]
+        limit=pagination.limit, offset=pagination.offset
     )
     return categories
 
@@ -41,9 +46,16 @@ async def create_category(
 # EVENTS
 @router.get("/events", response_model=list[EventOutSchema])
 async def get_events(
-    pagination: Annotated[dict, Depends(pagination_params)],
+    filters: Annotated[EventFilterSchema, Query()],
     event_service: Annotated[EventService, Depends(get_event_service)],
 ):
-    # todo: add filters, proper schema
-    events = await event_service.get_events(limit=pagination["limit"], offset=pagination["offset"])
+    events = await event_service.get_events(**filters.dict(exclude_unset=True, by_alias=True))
     return events
+
+
+@router.get("/events/{event_id}", response_model=EventOutSchema)
+async def get_event(
+    event_id: int, event_service: Annotated[EventService, Depends(get_event_service)]
+):
+    event = await event_service.get_event(event_id=event_id)
+    return event
