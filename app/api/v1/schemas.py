@@ -15,6 +15,17 @@ class EventCategoryOutSchema(BaseModel):
         from_attributes = True
 
 
+class EventCategoryInSchema(BaseModel):
+    name: str
+
+
+class EventCategoryFilterSchema(PaginationSchema):
+    name__ilike: str | None = Field(
+        None,
+        description="Category name, e.g. %foo%",
+    )
+
+
 class EventOutSchema(BaseModel):
     id: int
     title: str
@@ -33,10 +44,6 @@ class EventOutSchema(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-class EventCategoryInSchema(BaseModel):
-    name: str
 
 
 class EventFilterSchema(PaginationSchema):
