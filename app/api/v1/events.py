@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 
 from app.services.event import get_event_service, EventService
 from .schemas import (
@@ -67,7 +67,10 @@ async def create_category(
                 }
             },
             "description": "Category is still referenced from events table.",
-        }
+        },
+        http.HTTPStatus.NOT_FOUND: {
+            "description": "Category is not found.",
+        },
     },
 )
 async def delete_category(
@@ -75,13 +78,16 @@ async def delete_category(
     event_service: Annotated[EventService, Depends(get_event_service)],
 ):
     try:
-        await event_service.delete_category(name=category_name)
+        found_and_deleted = await event_service.delete_category(name=category_name)
     except IntegrityError:
         raise HTTPException(
             status_code=http.HTTPStatus.BAD_REQUEST,
             detail=f"Category={category_name} is still referenced from events table.",
         )
-    return JSONResponse(status_code=http.HTTPStatus.NO_CONTENT, content="")
+
+    if not found_and_deleted:
+        return Response(status_code=http.HTTPStatus.NOT_FOUND)
+    return Response(status_code=http.HTTPStatus.NO_CONTENT)
 
 
 # EVENTS
@@ -100,3 +106,25 @@ async def get_event(
 ):
     event = await event_service.get_event(event_id=event_id)
     return event
+
+
+@router.delete(
+    "/events/{event_id}",
+    response_model=None,
+    response_model_exclude_none=True,
+    response_model_exclude_unset=True,
+    status_code=http.HTTPStatus.NO_CONTENT,
+    responses={
+        http.HTTPStatus.NOT_FOUND: {
+            "description": "Event is not found.",
+        }
+    },
+)
+async def delete_event(
+    event_id: int,
+    event_service: Annotated[EventService, Depends(get_event_service)],
+):
+    found_and_deleted = await event_service.delete_event(event_id=event_id)
+    if not found_and_deleted:
+        return Response(status_code=http.HTTPStatus.NOT_FOUND)
+    return Response(status_code=http.HTTPStatus.NO_CONTENT)

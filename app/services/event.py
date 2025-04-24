@@ -50,9 +50,11 @@ class EventService:
         await self.db.commit()
         return qs.mappings().one()
 
-    async def delete_category(self, name: str):
+    async def delete_category(self, name: str) -> bool:
         qs = delete(EventCategory).where(EventCategory.name == name)
-        await self.db.execute(qs)
+        res = await self.db.execute(qs)
+        await self.db.commit()
+        return res.rowcount != 0
 
     async def get_events(self, limit: int | None = None, offset: int | None = None, **filters):
         qs = select(Event).options(joinedload(Event.category))
@@ -68,6 +70,12 @@ class EventService:
         qs = select(Event).where(Event.id == event_id).options(joinedload(Event.category))
         event = (await self.db.execute(qs)).scalars().first()
         return event
+
+    async def delete_event(self, event_id: int) -> bool:
+        qs = delete(Event).where(Event.id == event_id)
+        res = await self.db.execute(qs)
+        await self.db.commit()
+        return res.rowcount != 0
 
 
 async def get_event_service(db: Annotated[AsyncSession, Depends(get_db_session)]) -> EventService:
