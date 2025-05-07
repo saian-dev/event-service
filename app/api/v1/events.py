@@ -2,7 +2,7 @@ import http
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, StatementError
 from fastapi.responses import Response
 
 from app.services.event import get_event_service, EventService
@@ -12,6 +12,7 @@ from .schemas import (
     EventCategoryInSchema,
     EventFilterSchema,
     EventCategoryFilterSchema,
+    EventUpdateSchema,
 )
 
 router = APIRouter()
@@ -24,7 +25,7 @@ async def get_all_categories(
     event_service: Annotated[EventService, Depends(get_event_service)],
 ):
     categories = await event_service.get_categories(
-        **filters.dict(exclude_unset=True, by_alias=True)
+        **filters.model_dump(exclude_unset=True, by_alias=True)
     )
     return categories
 
@@ -32,22 +33,16 @@ async def get_all_categories(
 @router.post(
     "/categories",
     response_model=EventCategoryOutSchema,
-    responses={
-        http.HTTPStatus.BAD_REQUEST: {
-            "content": {"application/json": {"example": {"detail": "Category already exists."}}},
-            "description": "Category is still referenced from events table.",
-        }
-    },
 )
 async def create_category(
     category: EventCategoryInSchema,
     event_service: Annotated[EventService, Depends(get_event_service)],
 ):
     try:
-        created = await event_service.create_category(**category.dict())
+        created = await event_service.create_category(**category.model_dump())
     except IntegrityError:
         raise HTTPException(
-            status_code=http.HTTPStatus.BAD_REQUEST, detail="Category already exists"
+            status_code=http.HTTPStatus.UNPROCESSABLE_ENTITY, detail="Category already exists"
         )
     else:
         return created
@@ -60,14 +55,6 @@ async def create_category(
     response_model_exclude_unset=True,
     status_code=http.HTTPStatus.NO_CONTENT,
     responses={
-        http.HTTPStatus.BAD_REQUEST: {
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Category=X is still referenced from events table."}
-                }
-            },
-            "description": "Category is still referenced from events table.",
-        },
         http.HTTPStatus.NOT_FOUND: {
             "description": "Category is not found.",
         },
@@ -81,7 +68,7 @@ async def delete_category(
         found_and_deleted = await event_service.delete_category(name=category_name)
     except IntegrityError:
         raise HTTPException(
-            status_code=http.HTTPStatus.BAD_REQUEST,
+            status_code=http.HTTPStatus.UNPROCESSABLE_ENTITY,
             detail=f"Category={category_name} is still referenced from events table.",
         )
 
@@ -96,7 +83,7 @@ async def get_events(
     filters: Annotated[EventFilterSchema, Query()],
     event_service: Annotated[EventService, Depends(get_event_service)],
 ):
-    events = await event_service.get_events(**filters.dict(exclude_unset=True, by_alias=True))
+    events = await event_service.get_events(**filters.model_dump(exclude_unset=True, by_alias=True))
     return events
 
 
@@ -128,3 +115,17 @@ async def delete_event(
     if not found_and_deleted:
         return Response(status_code=http.HTTPStatus.NOT_FOUND)
     return Response(status_code=http.HTTPStatus.NO_CONTENT)
+
+
+@router.post("/events", response_model=EventOutSchema, status_code=http.HTTPStatus.OK)
+async def create_event(
+    payload: EventUpdateSchema,
+    event_service: Annotated[EventService, Depends(get_event_service)],
+):
+    try:
+        event = await event_service.create_event(**payload.model_dump())
+    except (StatementError, IntegrityError) as err:
+        raise HTTPException(
+            status_code=http.HTTPStatus.UNPROCESSABLE_ENTITY, detail=str(err.orig or err)
+        )
+    return event

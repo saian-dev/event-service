@@ -43,12 +43,12 @@ class EventService:
 
         return (await self.db.execute(qs)).scalars().all()
 
-    async def create_category(self, **kwargs: dict):
-        qs = insert(EventCategory).values(**kwargs).returning(EventCategory.name)
+    async def create_category(self, **kwargs: dict) -> EventCategory:
+        qs = insert(EventCategory).values(**kwargs).returning(EventCategory)
         qs = await self.db.execute(qs)
 
         await self.db.commit()
-        return qs.mappings().one()
+        return qs.scalars().one()
 
     async def delete_category(self, name: str) -> bool:
         qs = delete(EventCategory).where(EventCategory.name == name)
@@ -66,7 +66,7 @@ class EventService:
 
         return (await self.db.execute(qs)).scalars().all()
 
-    async def get_event(self, event_id: int):
+    async def get_event(self, event_id: int) -> Event:
         qs = select(Event).where(Event.id == event_id).options(joinedload(Event.category))
         event = (await self.db.execute(qs)).scalars().first()
         return event
@@ -76,6 +76,14 @@ class EventService:
         res = await self.db.execute(qs)
         await self.db.commit()
         return res.rowcount != 0
+
+    async def create_event(self, **kwargs: dict) -> Event:
+        qs = insert(Event).values(kwargs).returning(Event.id)
+        qs = await self.db.execute(qs)
+        await self.db.commit()
+
+        new_id = qs.scalars().first()
+        return await self.get_event(new_id)
 
 
 async def get_event_service(db: Annotated[AsyncSession, Depends(get_db_session)]) -> EventService:

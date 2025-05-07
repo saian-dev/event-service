@@ -46,6 +46,23 @@ class EventOutSchema(BaseModel):
         from_attributes = True
 
 
+class EventUpdateSchema(BaseModel):
+    title: str
+    description: str
+    start_date: datetime.datetime
+    end_date: datetime.datetime
+    venue: str
+    total_tickets: int
+    available_tickets: int
+    price: float
+    category_id: str
+    image_url: str
+    is_published: bool
+
+    class Config:
+        from_attributes = True
+
+
 class EventFilterSchema(PaginationSchema):
     is_published: bool | None = Field(None, description="Is published?")
     category: str | None = Field(
